@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+    <metadata>
+        <id>CMQTT</id>
+        <version>0.0.0.1</version>
+        <title>MQTT Broker for Crestron</title>
+        <authors>Pavel Anpin, Paolo Patierno and the GnatMQ Community</authors>
+        <owners>Pavel Anpin</owners>
+        <license type="file">LICENSE.txt</license>
+        <projectUrl>https://github.com/APES-ge/cmqtt</projectUrl>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>Port of GnatMQ Broker (server) for the MQTT protocol to Crestron SIMPL# Framework, works on 3 and 4 series controllers</description>
+        <summary>Port of GnatMQ Broker (server) for the MQTT protocol to Crestron SIMPL# Framework, works on 3 and 4 series controllers</summary>
+        <releaseNotes>Initial Release</releaseNotes>
+        <copyright>AP Engineering LLC Copyright 2021</copyright>
+        <tags>m2m mqtt queue messaging internetofthings iot cloud broker crestron 3series 4series</tags>
+    </metadata>
+    <files>
+        <file src="**" target="lib\net35" />
+        <file src="**" target="lib\net47" />
+        <file src="LICENSE.txt" target="" />
+    </files>
+</package>

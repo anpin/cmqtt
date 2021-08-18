@@ -1,13 +1,9 @@
-# GnatMQ
+# CMQTT
+[![NuGet](https://img.shields.io/nuget/v/CMQTT.svg?style=flat)](https://www.nuget.org/packages/CMQTT/)
 
-![](images/gnat.jpg)
+CMQTT - MQTT Broker and Client for Crestron S#Pro framework
 
-GnatMQ - MQTT Broker for .NET and WinRT
-
-## Alternatives
-This repository is not well maintained, and the code is a bit dated. 
-[MQTTnet](https://github.com/chkr1011/MQTTnet) is the direct alternative, and better maintained. 
-[dotNetty](https://github.com/Azure/DotNetty) is a Microsoft-supported generic messaging server that supports MQTT transport. That's a good option is you want to use the protocol to talk to a server, rather than to use it as a broker.
+This repository is port of [GnatMQ](https://github.com/gnatmq/gnatmq) for Crestron S#Pro framework
 
 ## Description
 
@@ -23,65 +19,48 @@ This project is created to develop an MQTT broker.  While there are other MQTT b
 
 ## How to use:
 ```
-Install-Package GnatMQ_Broker -Version 1.2.0
+nuget install CMQTT -OutputDirectory .\packages -excludeVersion
 ```
 Starting the server is simple:
 ```C#
-using uPLibrary.Networking.M2Mqtt;
-
-static void Main(string[] args)
+using CMQTT;
+namespace Server
 {
-    // create and start broker
-    MqttBroker broker = new MqttBroker();
-    broker.Start();
-	//Once the broker is started, you applciaiton is free to do whatever it wants. 
-    Console.ReadLine();
-	
-	///Stop broker
-    broker.Stop();
+    public class ControlSystem : CrestronControlSystem
+    {
+        MqttBroker broker;
+        ...
+        public override void InitializeSystem()
+        {
+            // create and start broker
+            broker = new MqttBroker();
+            broker.Start();
+            //Once the broker is started, you applciaiton is free to do whatever it wants. 
+        }
+        ...
+        void ControlSystem_ControllerProgramEventHandler(eProgramStatusEventType programStatusEventType)
+        {
+            switch (programStatusEventType)
+            {
+                case (eProgramStatusEventType.Stopping):
+                    broker.Stop();
+                    break;
+            }
+
+        }
+        ...
+    }
 }
 ```
-The broker can also be embedded in an applicaiton, 
-be that a cloud server, desktop app or even a UWP applicaiton. 
+Please refer to the Server project for the full example with local client running in the same program
 
 ## Supported Platforms: 
-* .Net Framework (up to 4.5)
-* .Net Compact Framework 3.5 & 3.9 (for Windows Embedded Compact 7 / 2013)
-* .Net Micro Framework 4.2 & 4.3
-* Mono (for Linux O.S.)
-* Windows 8.1
-* Windows Phone 8.1
-* Windows 10 (Through .Net Standard 2)
-* .Net Core (Through .Net Standard 2)
+* Crestron 3-series controllers
+* Crestron 4-series controllers
 
-## Features
+# If this package saves you time consider donating via buttons below
+[![Coinbase](https://img.shields.io/badge/Donate%20with-Crypto-red)](https://commerce.coinbase.com/checkout/68c42319-c494-47b5-8755-2fad731a3547)
+[![Paypal](https://img.shields.io/badge/Donate%20with-PayPal-blue)](https://paypal.me/APEngineeringLLC?locale.x=en_US)
 
-**Main features included in the current release:**
-
-* All three Quality of Service (QoS) Levels (at most once, at least once, exactly once);
-* Clean session;
-* Retained messages;
-* Will message (QoS, topic and message);
-* Username/Password via a User Access Control;
-* Subscription to topics with wildcards;
-* Publish and subscribe handle using inflight queue;
-* Security connection with SSL/TLS;
-
-**Features not included in the current release:**
-
-* Broker configuration using a simple config file;
-* Bridge configuration (broker to broker);
-* Sessions, retained and will messages persisted at broker shutdown (ex. database); 
-
-## Contributing 
-Contributions are welcome. Please submit a PR against the Dev branch. 
-Because the software supprots so many platforms, testing it is a little involved. 
-Because GnatMQ supports .Net Compact Framework 3.9, building nuget packages requires VS2015 Pro or Enterprise and  
-Applicaiton Builder for [Compact Framework, download here](https://www.microsoft.com/en-us/download/details.aspx?id=38819). 
-
-
-## More Information
-* The project has an official website here :  https://m2mqtt.wordpress.com/
-* or more information about MQTT, visit: http://www.mqtt.org
-* For more information about OASIS, visit: https://www.oasis-open.org
-* There is an MQTT client, M2Mqtt released as community resource on this GitHub repo : https://github.com/ppatierno/m2mqtt
+# Comercial support is availiable
+    Drop us an email at hi[at]apes[dot]ge 

@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CMQTTServer", "CMQTTServer\CMQTTServer.csproj", "{1DCF5061-BAA0-49C7-892E-45DBFD44CA38}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CMQTT", "CMQTT\CMQTT.csproj", "{7EEBCEA6-3CE4-4162-8920-C0EECB135A07}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SSharpCrestronExtensionsLibrary", "SSharpCrestronExtensionsLibrary\SSharpCrestronExtensionsLibrary.csproj", "{9384CC19-3161-498C-897C-2E972C2628A4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1DCF5061-BAA0-49C7-892E-45DBFD44CA38}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DCF5061-BAA0-49C7-892E-45DBFD44CA38}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DCF5061-BAA0-49C7-892E-45DBFD44CA38}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DCF5061-BAA0-49C7-892E-45DBFD44CA38}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7EEBCEA6-3CE4-4162-8920-C0EECB135A07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7EEBCEA6-3CE4-4162-8920-C0EECB135A07}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7EEBCEA6-3CE4-4162-8920-C0EECB135A07}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7EEBCEA6-3CE4-4162-8920-C0EECB135A07}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9384CC19-3161-498C-897C-2E972C2628A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9384CC19-3161-498C-897C-2E972C2628A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9384CC19-3161-498C-897C-2E972C2628A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9384CC19-3161-498C-897C-2E972C2628A4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
