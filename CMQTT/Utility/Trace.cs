@@ -60,7 +60,7 @@ namespace CMQTT.Utility
         }
         public static void WriteLine(TraceLevel level, string format)
         {
-            if (TraceListener != null )//&& true)(level & TraceLevel) > 0)
+            if (TraceListener != null && (level & TraceLevel) > 0)
             {
                 TraceListener(format);
             }
@@ -68,7 +68,7 @@ namespace CMQTT.Utility
 
         public static void WriteLine(TraceLevel level, string format, object arg1)
         {
-            if (TraceListener != null)//&& (level & TraceLevel) > 0)
+            if (TraceListener != null && (level & TraceLevel) > 0)
             {
                 TraceListener(format, arg1);
             }
@@ -76,7 +76,7 @@ namespace CMQTT.Utility
 
         public static void WriteLine(TraceLevel level, string format, object arg1, object arg2)
         {
-            if (TraceListener != null)//&& (level & TraceLevel) > 0)
+            if (TraceListener != null && (level & TraceLevel) > 0)
             {
                 TraceListener(format, arg1, arg2);
             }
@@ -84,7 +84,7 @@ namespace CMQTT.Utility
 
         public static void WriteLine(TraceLevel level, string format, object arg1, object arg2, object arg3)
         {
-            if (TraceListener != null)// && (level & TraceLevel) > 0)
+            if (TraceListener != null && (level & TraceLevel) > 0)
             {
                 TraceListener(format, arg1, arg2, arg3);
             }
