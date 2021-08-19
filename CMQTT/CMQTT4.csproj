@@ -194,12 +194,6 @@
     <None Include="packages.config" />
     <None Include="Properties\ControlSystem.cfg" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\SSharpCrestronExtensionsLibrary\SSharpCrestronExtensionsLibrary4.csproj">
-      <Project>{f826a198-ae30-47e4-b6bd-92b1f852cf71}</Project>
-      <Name>SSharpCrestronExtensionsLibrary4</Name>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Crestron.SimplSharp.SDK.Library.2.14.182\build\Crestron.SimplSharp.SDK.Library.targets" Condition="Exists('..\packages\Crestron.SimplSharp.SDK.Library.2.14.182\build\Crestron.SimplSharp.SDK.Library.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

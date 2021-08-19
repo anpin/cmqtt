@@ -50,12 +50,12 @@ namespace CMQTT.Managers
         private Queue<MqttMsgBase> publishQueue;
 
         // event for waiting thread end
-        private AutoResetEvent publishEventEnd;
+        private CEvent publishEventEnd;
         // event for starting publish
-        private AutoResetEvent publishQueueWaitHandle;
+        private CEvent publishQueueWaitHandle;
 		// event for waiting publishing messages end
-		private AutoResetEvent publishMessagesEventEnd;
-		public AutoResetEvent PublishMessagesEventEnd { get { return publishMessagesEventEnd; } }
+		private CEvent publishMessagesEventEnd;
+		public CEvent PublishMessagesEventEnd { get { return publishMessagesEventEnd; } }
 
         private bool isRunning;
 
@@ -96,8 +96,8 @@ namespace CMQTT.Managers
 
             // create publish messages queue
             this.publishQueue = new Queue<MqttMsgBase>();
-            this.publishQueueWaitHandle = new AutoResetEvent(false);
-			this.publishMessagesEventEnd = new AutoResetEvent(false);
+            this.publishQueueWaitHandle = new CEvent(true,false);
+			this.publishMessagesEventEnd = new CEvent(true, false);
         }
         Thread publishThread;
         /// <summary>
@@ -119,7 +119,7 @@ namespace CMQTT.Managers
             this.publishQueueWaitHandle.Set();
 
             // wait for thread
-            this.publishEventEnd.WaitOne();
+            this.publishEventEnd.Wait();
         }
 
         /// <summary>
@@ -211,12 +211,12 @@ namespace CMQTT.Managers
             MqttMsgPublish publish;
 
             // create event to signal that current thread is ended
-            this.publishEventEnd = new AutoResetEvent(false);
+            this.publishEventEnd = new CEvent(true, false);
 
             while (this.isRunning)
             {
                 // wait on message queueud to publish
-                this.publishQueueWaitHandle.WaitOne();
+                this.publishQueueWaitHandle.Wait();
 				publishMessagesEventEnd.Reset();
 
                 // first check new subscribers to send retained messages ...

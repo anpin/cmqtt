@@ -81,15 +81,15 @@ namespace CMQTT
         // running status of threads
         private bool isRunning;
         // event for raising received message event
-        private AutoResetEvent receiveEventWaitHandle;
+        private CEvent receiveEventWaitHandle;
 
-        private AutoResetEvent closeEventWaitHandle;
+        private CEvent closeEventWaitHandle;
 
         // event for starting process inflight queue asynchronously
-        private AutoResetEvent inflightWaitHandle;
+        private CEvent inflightWaitHandle;
 
         // event for signaling synchronous receive
-        AutoResetEvent syncEndReceiving;
+        CEvent syncEndReceiving;
         // message received
         MqttMsgBase msgReceived;
 
@@ -213,16 +213,16 @@ namespace CMQTT
             this.ClientId = null;
             this.CleanSession = true;
 
-            this.keepAliveEvent = new AutoResetEvent(false);
+            this.keepAliveEvent = new CEvent(true, false);
 
             // queue for handling inflight messages (publishing and acknowledge)
-            this.inflightWaitHandle = new AutoResetEvent(false);
+            this.inflightWaitHandle = new CEvent(true, false);
             this.inflightQueue = new Queue();
 
             // queue for received message
-            this.receiveEventWaitHandle = new AutoResetEvent(false);
-            this.closeEventWaitHandle = new AutoResetEvent(false);
-            this.syncEndReceiving = new AutoResetEvent(false);
+            this.receiveEventWaitHandle = new CEvent(true, false);
+            this.closeEventWaitHandle = new CEvent(true, false);
+            this.syncEndReceiving = new CEvent(true, false);
             this.eventQueue = new Queue();
             this.internalQueue = new Queue();
 
@@ -317,7 +317,6 @@ namespace CMQTT
             {
                 // connect to the broker
                 this.channel.Connect(() =>
-
                 {
 
                     this.lastCommTime = 0;
@@ -443,7 +442,7 @@ namespace CMQTT
 				this.keepAliveEvent.Set();
 
 				if (this.keepAliveEventEnd != null)
-					this.keepAliveEventEnd.WaitOne(this.connectTimeout);
+					this.keepAliveEventEnd.Wait(this.connectTimeout);
 
 				// clear all queues
 				this.inflightQueue.Clear();
@@ -477,7 +476,7 @@ namespace CMQTT
 
                 // client must close connection
                 this.OnConnectionClosing();
-                this.closeEventWaitHandle.WaitOne(this.settings.TimeoutOnReceiving);
+                this.closeEventWaitHandle.Wait(this.settings.TimeoutOnReceiving);
                 return null;
             }
         }
@@ -740,13 +739,7 @@ namespace CMQTT
                 throw new MqttCommunicationException(e);
             }
 
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-            // wait for answer from broker
-            if (this.syncEndReceiving.WaitOne(timeout, false))
-#else
-            // wait for answer from broker
-            if (this.syncEndReceiving.WaitOne(timeout))
-#endif
+            if (this.syncEndReceiving.Wait(timeout))
             {
                 // message received without exception
                 if (this.exReceiving == null)
@@ -1211,12 +1204,9 @@ namespace CMQTT
                                 (ex.ErrorCode == MqttClientErrorCode.InvalidProtocolName) ||
                                 (ex.ErrorCode == MqttClientErrorCode.InvalidConnectFlags));
                     }
-#if !(WINDOWS_APP || WINDOWS_PHONE_APP)
                     else if ((e.GetType() == typeof(IOException)) || (e.GetType() == typeof(SocketException)) ||
                              ((e.InnerException != null) && (e.InnerException.GetType() == typeof(SocketException)))) // added for SSL/TLS incoming connection that use SslStream that wraps SocketException
-#else
-					else if (e.GetType() == typeof(System.AggregateException))
-#endif
+
                     {
                         close = true;
                     }
@@ -1248,17 +1238,12 @@ namespace CMQTT
             int wait = this.keepAlivePeriod;
 
             // create event to signal that current thread is end
-            this.keepAliveEventEnd = new AutoResetEvent(false);
+            this.keepAliveEventEnd = new CEvent(true, false);
 
             while (this.isRunning)
             {
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-                // waiting...
-                this.keepAliveEvent.WaitOne(wait, false);
-#else
-                // waiting...
-                this.keepAliveEvent.WaitOne(wait);
-#endif
+                this.keepAliveEvent.Wait(wait);
+
 
                 if (this.isRunning)
                 {
@@ -1303,7 +1288,7 @@ namespace CMQTT
 
                 if ((this.eventQueue.Count == 0) && !this.isConnectionClosing)
                     // wait on receiving message from client
-                    this.receiveEventWaitHandle.WaitOne();
+                    this.receiveEventWaitHandle.Wait();
 
                 // check if it is running or we are closing client
                 if (this.isRunning)
@@ -1448,7 +1433,7 @@ namespace CMQTT
                 while (this.isRunning)
                 {
                     // wait on message queueud to inflight
-                    this.inflightWaitHandle.WaitOne(timeout);
+                    this.inflightWaitHandle.Wait(timeout);
 
                     // it could be unblocked because Close() method is joining
                     if (this.isRunning)
@@ -1643,11 +1628,8 @@ namespace CMQTT
                                                     // PUBACK received for PUBLISH message with QoS Level 1, remove from session state
                                                     if ((msgInflight.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE) &&
                                                         (this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
                                                         (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                        (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+
                                                     {
                                                         this.session.InflightMessages.Remove(msgContext.Key);
                                                     }
@@ -1685,11 +1667,8 @@ namespace CMQTT
                                                         {
                                                             // PUBACK not received in time, PUBLISH retries failed, need to remove from session inflight messages too
                                                             if ((this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
                                                                 (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                                (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+
                                                             {
                                                                 this.session.InflightMessages.Remove(msgContext.Key);
                                                             }
@@ -1784,11 +1763,8 @@ namespace CMQTT
                                                     {
                                                         // PUBREC not received in time, PUBLISH retries failed, need to remove from session inflight messages too
                                                         if ((this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
                                                             (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                            (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+
                                                         {
                                                             this.session.InflightMessages.Remove(msgContext.Key);
                                                         }
@@ -1851,11 +1827,8 @@ namespace CMQTT
                                                     // PUBREL received (and PUBCOMP sent) for PUBLISH message with QoS Level 2, remove from session state
                                                     if ((msgInflight.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE) &&
                                                         (this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
                                                         (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                        (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+
                                                     {
                                                         this.session.InflightMessages.Remove(msgContext.Key);
                                                     }
@@ -1914,11 +1887,8 @@ namespace CMQTT
                                                     // PUBCOMP received for PUBLISH message with QoS Level 2, remove from session state
                                                     if ((msgInflight.Type == MqttMsgBase.MQTT_MSG_PUBLISH_TYPE) &&
                                                         (this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
                                                         (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                        (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+
                                                     {
                                                         this.session.InflightMessages.Remove(msgContext.Key);
                                                     }
@@ -1973,11 +1943,8 @@ namespace CMQTT
                                                     {
                                                         // PUBCOMP not received, PUBREL retries failed, need to remove from session inflight messages too
                                                         if ((this.session != null) &&
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
                                                             (this.session.InflightMessages.Contains(msgContext.Key)))
-#else
-                                                            (this.session.InflightMessages.ContainsKey(msgContext.Key)))
-#endif
+
                                                         {
                                                             this.session.InflightMessages.Remove(msgContext.Key);
                                                         }

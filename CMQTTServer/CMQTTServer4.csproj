@@ -68,10 +68,6 @@
       <Project>{bfd17b0d-d311-4b06-a86d-584785a171b5}</Project>
       <Name>CMQTT4</Name>
     </ProjectReference>
-    <ProjectReference Include="..\SSharpCrestronExtensionsLibrary\SSharpCrestronExtensionsLibrary4.csproj">
-      <Project>{f826a198-ae30-47e4-b6bd-92b1f852cf71}</Project>
-      <Name>SSharpCrestronExtensionsLibrary4</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Crestron.SimplSharp.SDK.Library.2.14.182\build\Crestron.SimplSharp.SDK.Library.targets" Condition="Exists('..\packages\Crestron.SimplSharp.SDK.Library.2.14.182\build\Crestron.SimplSharp.SDK.Library.targets')" />

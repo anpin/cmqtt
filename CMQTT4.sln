@@ -7,8 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CMQTT4", "CMQTT\CMQTT4.cspr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CMQTTServer4", "CMQTTServer\CMQTTServer4.csproj", "{098CBAE5-5B40-4912-BE12-6C92809A29D4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SSharpCrestronExtensionsLibrary4", "SSharpCrestronExtensionsLibrary\SSharpCrestronExtensionsLibrary4.csproj", "{F826A198-AE30-47E4-B6BD-92B1F852CF71}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,10 +21,6 @@ Global
 		{098CBAE5-5B40-4912-BE12-6C92809A29D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{098CBAE5-5B40-4912-BE12-6C92809A29D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{098CBAE5-5B40-4912-BE12-6C92809A29D4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F826A198-AE30-47E4-B6BD-92B1F852CF71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F826A198-AE30-47E4-B6BD-92B1F852CF71}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F826A198-AE30-47E4-B6BD-92B1F852CF71}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F826A198-AE30-47E4-B6BD-92B1F852CF71}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -187,7 +187,7 @@ namespace CMQTT
                 }
 
                 // Waits end messages publication
-                publisherManager.PublishMessagesEventEnd.WaitOne(this.settings.TimeoutOnReceiving);
+                publisherManager.PublishMessagesEventEnd.Wait(this.settings.TimeoutOnReceiving);
 
                 // delete client from runtime subscription
                 this.subscriberManager.Unsubscribe(client);

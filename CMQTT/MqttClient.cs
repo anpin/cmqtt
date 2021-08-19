@@ -107,15 +107,15 @@ namespace CMQTT
             }
         }
         // event for raising received message event
-        private AutoResetEvent receiveEventWaitHandle;
+        private CEvent receiveEventWaitHandle;
 
-        private AutoResetEvent closeEventWaitHandle;
+        private CEvent closeEventWaitHandle;
 
         // event for starting process inflight queue asynchronously
-        private AutoResetEvent inflightWaitHandle;
+        private CEvent inflightWaitHandle;
 
         // event for signaling synchronous receive
-        AutoResetEvent syncEndReceiving;
+        CEvent syncEndReceiving;
         // message received
         MqttMsgBase msgReceived;
 
@@ -125,8 +125,8 @@ namespace CMQTT
         // keep alive period (in ms)
         private int keepAlivePeriod;
         // events for signaling on keep alive thread
-        private AutoResetEvent keepAliveEvent;
-        private AutoResetEvent keepAliveEventEnd;
+        private CEvent keepAliveEvent;
+        private CEvent keepAliveEventEnd;
         // last communication time in ticks
         private int lastCommTime;
 
@@ -249,16 +249,16 @@ namespace CMQTT
             this.SocketId = channel.ClientId;
             this.CleanSession = true;
 
-            this.keepAliveEvent = new AutoResetEvent(false);
+            this.keepAliveEvent = new CEvent(true, false);
 
             // queue for handling inflight messages (publishing and acknowledge)
-            this.inflightWaitHandle = new AutoResetEvent(false);
+            this.inflightWaitHandle = new CEvent(true, false);
             this.inflightQueue = new Queue();
 
             // queue for received message
-            this.receiveEventWaitHandle = new AutoResetEvent(false);
-            this.closeEventWaitHandle = new AutoResetEvent(false);
-            this.syncEndReceiving = new AutoResetEvent(false);
+            this.receiveEventWaitHandle = new CEvent(true, false);
+            this.closeEventWaitHandle = new CEvent(true, false);
+            this.syncEndReceiving = new CEvent(true, false);
             this.eventQueue = new Queue();
             this.internalQueue = new Queue();
 
@@ -388,7 +388,7 @@ namespace CMQTT
 
                 // client must close connection
                 this.OnConnectionClosing();
-                this.closeEventWaitHandle.WaitOne(this.settings.TimeoutOnReceiving);
+                this.closeEventWaitHandle.Wait(this.settings.TimeoutOnReceiving);
                 return null;
             }
         }
@@ -778,13 +778,8 @@ namespace CMQTT
                 throw new MqttCommunicationException(e);
             }
 
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-            // wait for answer from broker
-            if (this.syncEndReceiving.WaitOne(timeout, false))
-#else
-            // wait for answer from broker
-            if (this.syncEndReceiving.WaitOne(timeout))
-#endif
+            if (this.syncEndReceiving.Wait(timeout))
+
             {
                 // message received without exception
                 if (this.exReceiving == null)
@@ -1377,17 +1372,11 @@ namespace CMQTT
             int wait = this.keepAlivePeriod;
 
             // create event to signal that current thread is end
-            this.keepAliveEventEnd = new AutoResetEvent(false);
+            this.keepAliveEventEnd = new CEvent(true, false);
 
             while (this.isRunning)
             {
-#if (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3 || COMPACT_FRAMEWORK)
-                // waiting...
-                this.keepAliveEvent.WaitOne(wait, false);
-#else
-                // waiting...
-                this.keepAliveEvent.WaitOne(wait);
-#endif
+                this.keepAliveEvent.Wait(wait);
 
                 if (this.isRunning)
                 {
@@ -1445,7 +1434,7 @@ namespace CMQTT
                     if (!this.IsConnected)
                     {
                         // wait on receiving message from client with a connection timeout
-                        if (!this.receiveEventWaitHandle.WaitOne(this.settings.TimeoutOnConnection))
+                        if (!this.receiveEventWaitHandle.Wait(this.settings.TimeoutOnConnection))
                         {
                             // client must close connection
                             this.Stop();
@@ -1456,13 +1445,13 @@ namespace CMQTT
                     else
                     {
                         // wait on receiving message from client
-                        this.receiveEventWaitHandle.WaitOne();
+                        this.receiveEventWaitHandle.Wait();
                     }
                 }
 #else
                 if ((this.eventQueue.Count == 0) && !this.isConnectionClosing)
                     // wait on receiving message from client
-                    this.receiveEventWaitHandle.WaitOne();
+                    this.receiveEventWaitHandle.Wait();
 #endif
 
                 // check if it is running or we are closing client
@@ -1635,7 +1624,7 @@ namespace CMQTT
                 while (this.isRunning)
                 {
                     // wait on message queueud to inflight
-                    this.inflightWaitHandle.WaitOne(timeout);
+                    this.inflightWaitHandle.Wait(timeout);
 
                     // it could be unblocked because Close() method is joining
                     if (this.isRunning)
