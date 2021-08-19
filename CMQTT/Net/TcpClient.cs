@@ -36,6 +36,25 @@ namespace CMQTT
         public TcpClient(IPEndPoint endPointToConnectTo, int bufferSize):base(endPointToConnectTo,bufferSize)
         {
 
+            CrestronEnvironment.EthernetEventHandler += EthernetEventHandler;
+        }
+        void EthernetEventHandler(EthernetEventArgs ethernetEventArgs)
+        {
+            switch (ethernetEventArgs.EthernetEventType)
+            {
+                case (eEthernetEventType.LinkDown):
+                    if (ethernetEventArgs.EthernetAdapter == EthernetAdapterType.EthernetLANAdapter)
+                    {
+                        HandleLinkLoss();
+                    }
+                    break;
+                case (eEthernetEventType.LinkUp):
+                    if (ethernetEventArgs.EthernetAdapter == EthernetAdapterType.EthernetLANAdapter)
+                    {
+                        HandleLinkUp();
+                    }
+                    break;
+            }
         }
     }
 }
