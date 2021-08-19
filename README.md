@@ -19,7 +19,7 @@ This project is created to develop an MQTT broker.  While there are other MQTT b
 
 ## How to use:
 ```
-nuget install CMQTT -OutputDirectory .\packages -excludeVersion
+nuget install CMQTT -OutputDirectory .\packages
 ```
 Starting the server is simple:
 ```C#
