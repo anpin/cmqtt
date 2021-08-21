@@ -14,8 +14,9 @@ Contributors:
    Paolo Patierno - initial API and implementation and/or initial documentation
    Pavel Anpin - port to Crestron SIMPL# framework
 */
-
+using System;
 using System.Diagnostics;
+using Crestron.SimplSharp;
 
 namespace CMQTT.Utility
 {
@@ -51,11 +52,19 @@ namespace CMQTT.Utility
                 TraceListener(format, args);
             }
         }
+        public static void Error(string message, Exception ex)
+        {
+            Error("{0} {1} {2}", message, ex.Message, ex.StackTrace);
+        }
         public static void Error(string format, params object[] args)
         {
             if (TraceListener != null)
             {
                 TraceListener(format, args);
+            }
+            else
+            {
+                ErrorLog.Error(format, args);
             }
         }
         public static void WriteLine(TraceLevel level, string format)
@@ -66,27 +75,11 @@ namespace CMQTT.Utility
             }
         }
 
-        public static void WriteLine(TraceLevel level, string format, object arg1)
+        public static void WriteLine(TraceLevel level, string format, params object[] arg)
         {
             if (TraceListener != null && (level & TraceLevel) > 0)
             {
-                TraceListener(format, arg1);
-            }
-        }
-
-        public static void WriteLine(TraceLevel level, string format, object arg1, object arg2)
-        {
-            if (TraceListener != null && (level & TraceLevel) > 0)
-            {
-                TraceListener(format, arg1, arg2);
-            }
-        }
-
-        public static void WriteLine(TraceLevel level, string format, object arg1, object arg2, object arg3)
-        {
-            if (TraceListener != null && (level & TraceLevel) > 0)
-            {
-                TraceListener(format, arg1, arg2, arg3);
+                TraceListener(format, arg);
             }
         }
     }

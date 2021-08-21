@@ -1,6 +1,7 @@
 ﻿using Crestron.SimplSharp;
 using Crestron.SimplSharp.CrestronSockets;
 using Crestron.SimplSharp.Cryptography.X509Certificates;
+using trace = CMQTT.Utility.Trace;
 namespace CMQTT
 {
     class SecureTcpClient: SecureTCPClient, ICrestronTcpClient
@@ -26,8 +27,19 @@ namespace CMQTT
         }
         public SecureTcpClient(IPEndPoint endPointToConnectTo, int bufferSize):base(endPointToConnectTo,bufferSize)
         {
-
+            SocketStatusChange += new SecureTCPClientSocketStatusChangeEventHandler(SecureTcpClient_SocketStatusChange);
             CrestronEnvironment.EthernetEventHandler += EthernetEventHandler;
+        }
+        public event ClientSocketStatusChangeEventHandler OnSocketStatusChange;
+        void SecureTcpClient_SocketStatusChange(SecureTCPClient myTCPClient, SocketStatus clientSocketStatus)
+        {
+#if TRACE
+            trace.WriteLine(CMQTT.Utility.TraceLevel.Information, "TcpClient {0}:{1} socket status change {2}", this.AddressClientConnectedTo, this.PortNumber, clientSocketStatus);
+#endif
+            if (OnSocketStatusChange != null)
+            {
+                OnSocketStatusChange.Invoke(this, clientSocketStatus);
+            }
         }
         void EthernetEventHandler(EthernetEventArgs ethernetEventArgs)
         {

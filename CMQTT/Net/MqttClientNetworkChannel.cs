@@ -15,7 +15,6 @@ Contributors:
    Pavel Anpin - port to Crestron SIMPL# framework
 */
 
-#if CRESTRON
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -46,7 +45,7 @@ namespace CMQTT
         {
             get
             {
-                return socket.ClientStatus;
+                return socket != null ? socket.ClientStatus : SocketStatus.SOCKET_STATUS_SOCKET_NOT_EXIST;
             }
         }
 		// IP Address of the client connected to Broker
@@ -80,8 +79,6 @@ namespace CMQTT
         CMutex dataLock = new CMutex();
         List<byte> DataStream = new List<byte>();
         readonly bool secure;
-        readonly X509Certificate cert;
-        readonly byte[] privateKey;
         /// <summary>
         /// Constructor
         /// </summary>
@@ -99,8 +96,13 @@ namespace CMQTT
             this.secure = secure;
             if(this.secure)
             {
-                this.cert = cert;
-                this.privateKey = privateKey;
+                this.socket = new SecureTcpClient(RemoteEndPoint, bufSize);
+                this.socket.SetClientCertificate(cert);
+                this.socket.SetClientPrivateKey(privateKey);
+            }
+            else
+            {
+                this.socket = new TcpClient(RemoteEndPoint, bufSize);
             }
         }
 #if TRACE
@@ -170,8 +172,15 @@ namespace CMQTT
 #if TRACE
                 MqttUtility.Trace.Debug("ReceiveDataCallBack: client: [{0}] finished, buffer: [{1}], total: [{2}]", clientIndex, DataStream.Count, _totalBytesReceived);
 #endif    
-                if(Status == SocketStatus.SOCKET_STATUS_CONNECTED || Status == SocketStatus.SOCKET_STATUS_WAITING)
+                if (Status == SocketStatus.SOCKET_STATUS_CONNECTED || Status == SocketStatus.SOCKET_STATUS_WAITING)
                     receive(s);
+                else if (!_closed)
+                    Connect(() =>
+                        {
+#if TRACE
+                            MqttUtility.Trace.Debug("ReceiveDataCallBack: client: [{0}] tried to reconnect, status [{1}]", clientIndex, Status);
+#endif    
+                        });
 
             }
         }
@@ -211,19 +220,15 @@ namespace CMQTT
         /// Connect to remote server
         /// </summary>
         /// 
-
+        
         public void Connect(Action callback)
         {
-            
-            if (secure)
+#if TRACE 
+            MqttUtility.Trace.WriteLine(TraceLevel.Verbose, "LocalClient [{0}] is trying to connect", clientIndex);
+#endif
+            if (Status == SocketStatus.SOCKET_STATUS_CONNECTED && !_closed)
             {
-                this.socket = new SecureTcpClient(RemoteEndPoint, bufSize);
-                this.socket.SetClientCertificate(cert);
-                this.socket.SetClientPrivateKey(privateKey);
-            }
-            else
-            {
-                this.socket = new TcpClient(RemoteEndPoint, bufSize);
+                Close();
             }
             // try connection to the broker
             var error = this.socket.ConnectToServerAsync((s) =>
@@ -235,13 +240,16 @@ namespace CMQTT
                 }
                 else
                 {
-                    MqttUtility.Trace.WriteLine(TraceLevel.Error, " MqttClientNetworkChannel Connection to {0}:{1} failed {2}", RemoteEndPoint.Address.ToString(), RemoteEndPoint.Port, s.ClientStatus.ToString());
+                    MqttUtility.Trace.WriteLine(TraceLevel.Error, "MqttClientNetworkChannel> Connection to {0}:{1} failed {2}", RemoteEndPoint.Address.ToString(), RemoteEndPoint.Port, s.ClientStatus.ToString());
                     Thread.Sleep(500);
                     if(!_closed)
                         Connect(callback);
                 }
                 
             });
+#if TRACE
+            MqttUtility.Trace.Debug("MqttClientNetworkChannel ConnectToServerAsync to {0}:{1} returned {2}", RemoteEndPoint.Address.ToString(), RemoteEndPoint.Port, error);
+#endif           
         }
         /// <summary>
         /// Send data on the network channel
@@ -293,11 +301,13 @@ namespace CMQTT
         /// </summary>
         public void Close()
         {
+#if TRACE
+            MqttUtility.Trace.Debug("MqttClientNetworkChannel> [{0}] Close was called", ClientId);
+#endif
             DataStream.Clear();
-            DataStream = null;
+            socket.Dispose();
             _closed = true;
         }
     }
 
 }
-#endif

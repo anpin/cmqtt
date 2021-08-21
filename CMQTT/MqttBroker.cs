@@ -228,6 +228,10 @@ namespace CMQTT
 #if TRACE
             MqttUtility.Trace.Debug("Broker> commLayer_ClientConnected Was called [{0}]", e.Client.SocketId);
 #endif
+            if (this.clients.ContainsKey(e.Client.SocketId))
+            {
+                CloseClient(this.clients[e.Client.SocketId]);
+            }
             // register event handlers from client
             e.Client.MqttMsgDisconnected += Client_MqttMsgDisconnected;
             e.Client.MqttMsgPublishReceived += Client_MqttMsgPublishReceived;
@@ -239,7 +243,7 @@ namespace CMQTT
 			lock (clients)
 			{
 				// add client to the collection
-				this.clients.Add(e.Client.SocketId, e.Client);
+				this.clients[e.Client.SocketId] = e.Client;
 			}
 
             // start client threads

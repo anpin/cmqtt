@@ -26,7 +26,6 @@ namespace CMQTT
     {
         public static Thread StartThread(ThreadCallbackFunction t)
         {
-            
             return new Thread(t, null, Thread.eThreadStartOptions.Running);
         }
 
