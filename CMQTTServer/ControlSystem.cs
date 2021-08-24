@@ -1,3 +1,4 @@
+//#define LOCALCLIENT
 using System;
 using Crestron.SimplSharp;                          	// For Basic SIMPL# Classes
 using Crestron.SimplSharpPro;                       	// For Basic SIMPL#Pro classes
@@ -16,8 +17,10 @@ namespace CMQTTServer
     public class ControlSystem : CrestronControlSystem
     {
         MqttBroker broker;
+#if LOCALCLIENT
         MqttLocalClient client;
         Thread clientThread;
+#endif
         bool running = true;
         int numberOfClients = 20;
         public ControlSystem()
@@ -52,6 +55,7 @@ namespace CMQTTServer
                 broker.Start();
                 broker.ClientConnected += new Action<MqttClient>(broker_ClientConnected);
                 broker.ClientDisconnected += new Action<MqttClient>(broker_ClientDisconnected);
+#if LOCALCLIENT
                 client = new MqttLocalClient(new IPEndPoint(IPAddress.Parse("10.254.254.237"), 1883), 100, 30000, 10000);
                 client.MqttMsgPublishReceived += Client_MqttMsgPublishReceived;
                 client.ConnectionClosed += Client_ConnectionClosed; ;
@@ -81,7 +85,7 @@ namespace CMQTTServer
                     return null;
                 });
                 
-
+#endif
 
             }
             catch (Exception e)
@@ -192,7 +196,9 @@ namespace CMQTTServer
                     //Unsubscribe to all System Monitor events
                     //client.Disconnect();
                     running = false;
+#if LOCALCLIENT
                     client.Disconnect();
+#endif
                     broker.Stop();
                     break;
             }

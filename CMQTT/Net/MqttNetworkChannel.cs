@@ -15,7 +15,6 @@ Contributors:
    Pavel Anpin - port to Crestron SIMPL# framework
 */
 
-#if CRESTRON
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -92,7 +91,7 @@ namespace CMQTT
            
         }
         private int _totalBytesReceived = 0;
-        CMutex dataLock = new CMutex();
+        //CMutex dataLock = new CMutex();
         List<byte> DataStream = new List<byte>();
         Thread thread;
 #if TRACE
@@ -100,18 +99,9 @@ namespace CMQTT
         {
             get
             {
-                var w = dataLock.WaitForMutex(5000);
-                if (w == false)
-                {
-                    throw new ApplicationException("Couldn't aquire mutex");
-                }
-                try
+                lock(DataStream)
                 {
                     return DataStream.ToArray();
-                }
-                finally
-                {
-                    dataLock.ReleaseMutex();
                 }
                 
             }
@@ -120,13 +110,13 @@ namespace CMQTT
         private object ListenerThread(object o)
         {
             // ...and start it
-            while (!this._closed)
+            while (!this._closed && socket.GetServerSocketStatusForSpecificClient(clientIndex) == SocketStatus.SOCKET_STATUS_CONNECTED)
             {
                 try
                 {
                     if (rxMutex)
                     {
-                        Thread.Sleep(100);
+                        Thread.Sleep(50);
                     }
                     else
                     {
@@ -182,31 +172,18 @@ namespace CMQTT
             try
             {
                 st = s.GetServerSocketStatusForSpecificClient(newClientIndex);
-                //var a = DataAvailable;
 #if TRACE
                 MqttUtility.Trace.Debug("ReceiveDataCallBack: client: [{0}] length: [{1}] status: [{2}]", newClientIndex, numberOfBytesReceived, st);
 #endif
 
-                if (numberOfBytesReceived > 0 )//&& st == SocketStatus.SOCKET_STATUS_CONNECTED)
+                if (numberOfBytesReceived > 0)//&& st == SocketStatus.SOCKET_STATUS_CONNECTED)
                 {
                     _totalBytesReceived += numberOfBytesReceived;
                     byte[] recvd_bytes = new byte[numberOfBytesReceived];
                     Array.Copy(s.GetIncomingDataBufferForSpecificClient(newClientIndex), recvd_bytes, numberOfBytesReceived);
-
-                    var w = dataLock.WaitForMutex(5000);
-                    if (w == false)
+                    lock (DataStream)
                     {
-                        throw new ApplicationException("Couldn't aquire mutex");
-                    }
-                    try
-                    {
-                        //ms.Seek(0, SeekOrigin.End);
-                        //ms.Write(buf, 0, numberOfBytesReceived);
                         DataStream.AddRange(recvd_bytes);
-                    }
-                    finally
-                    {
-                        dataLock.ReleaseMutex();
                     }
                 }
             }
@@ -214,20 +191,13 @@ namespace CMQTT
             {
                 rxMutex = false;
 #if TRACE
-                MqttUtility.Trace.Debug("ReceiveDataCallBack: client: [{0}] finished, buffer: [{1}], total: [{2}]", newClientIndex, DataStream.Count, _totalBytesReceived);
-#endif    
-                receive(s);
-
+                MqttUtility.Trace.Debug("ReceiveDataCallBack: client: [{0}] finished, buffer: [{1}], total: [{2}], status: [{3}]", newClientIndex, DataStream.Count, _totalBytesReceived, st);
+#endif
             }
         }
         public byte[] Receive(int l, out int received)
         {
-            var w = dataLock.WaitForMutex(5000);
-            if (w == false)
-            {
-                throw new ApplicationException("Couldn't aquire mutex");
-            }
-            try
+            lock(DataStream)
             {
                 if (l > DataStream.Count || _closed)
                 {
@@ -236,7 +206,6 @@ namespace CMQTT
                 }
                 var bytes = new byte[l];
                 var i = 0;
-                //channel.DataStream.Seek(0, SeekOrigin.Begin);
                 for (i = 0; i < l; i++)
                 {
                     var b = DataStream[0];
@@ -245,10 +214,6 @@ namespace CMQTT
                 }
                 received = i;
                 return bytes;
-            }
-            finally
-            {
-                dataLock.ReleaseMutex();
             }
         }
         
@@ -278,21 +243,9 @@ namespace CMQTT
             MqttUtility.Trace.Debug("NetworkChannel [{0}] is closing", clientIndex);
 #endif
             _closed = true;
-            var w = dataLock.WaitForMutex(1000);
-            if (w == false)
-            {
-
-#if TRACE
-                MqttUtility.Trace.Debug("NetworkChannel [{0}] couldn't aquire mutex", clientIndex);
-#endif
-            }
-            try
+            lock (DataStream)
             {
                 DataStream.Clear();
-            }
-            finally
-            {
-                dataLock.ReleaseMutex();
             }
             thread.Join();
             //socket.Disconnect(clientIndex);
@@ -300,7 +253,19 @@ namespace CMQTT
             MqttUtility.Trace.Debug("NetworkChannel [{0}] was closed", clientIndex);
 #endif
         }
+        //public void Dispose()
+        //{
+        //    if (IsDisposed)
+        //        return;
+        //    lock (DataStream)
+        //    {
+        //        this.DataStream = null;
+        //    }
+        //    this.socket = null;
+        //    this.thread.Abort();
+        //    IsDisposed = true;
+        //}
+        //public bool IsDisposed { get; private set; }
     }
 
 }
-#endif

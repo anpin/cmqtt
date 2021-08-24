@@ -28,10 +28,8 @@ using CMQTT.Internal;
 using System.Collections.Generic;
 using System.Collections;
 using Crestron.SimplSharp.CrestronIO;
-#if SSL
 using Crestron.SimplSharp.Cryptography;
 using Crestron.SimplSharp.Cryptography.X509Certificates;
-#endif
 // alias needed due to Microsoft.SPOT.Trace in .Net Micro Framework
 // (it's ambiguos with CMQTT.Utility.Trace)
 using MqttUtility = CMQTT.Utility;
@@ -321,14 +319,14 @@ namespace CMQTT
                 return;
 #endif
             }
+            this.closeEventWaitHandle.Reset();
             // stop receiving thread
             this.isRunning = false;
+            this.wasClosed = true;
             // wait end receive event thread
             if (this.receiveEventWaitHandle != null)
                 this.receiveEventWaitHandle.Set();
 
-            if (this.closeEventWaitHandle != null)
-                this.closeEventWaitHandle.Set();
 
             // wait end process inflight thread
             if (this.inflightWaitHandle != null)
@@ -346,13 +344,8 @@ namespace CMQTT
 
             // close network channel
             this.channel.Close();
-
             this.IsConnected = false;
-            //readThread.Join();
-            //dispatchEventThread.Join();
-            //processInflightThread.Join();
-            //keepAliveThread.Join();
-            wasClosed = true;
+            this.closeEventWaitHandle.Set();
             this.OnConnectionClosed();
 
 
@@ -1047,17 +1040,17 @@ namespace CMQTT
             {
                 try
                 {
-#if TRACE
-                    MqttUtility.Trace.Debug("MqttClient [{0}] entering read loop", this.channel.ClientId);
-#endif
+//#if TRACE
+//                    MqttUtility.Trace.Debug("MqttClient [{0}] entering read loop", this.channel.ClientId);
+//#endif
                     
                     // read first byte (fixed header)
                     fixedHeaderFirstByte = this.channel.Receive(1, out read);
 
 
-#if TRACE
-                    MqttUtility.Trace.Debug("MqttClient [{0}] read [{1}] bytes; message [{2}]; buffer [{3}]", this.channel.ClientId, read, fixedHeaderFirstByte.ToHex(), this.channel.Dump.ToHex());
-#endif
+//#if TRACE
+//                    MqttUtility.Trace.Debug("MqttClient [{0}] read [{1}] bytes; message [{2}]; buffer [{3}]", this.channel.ClientId, read, fixedHeaderFirstByte.ToHex(), this.channel.Dump.ToHex());
+//#endif
                     if (read > 0)
                     {
 #if BROKER
@@ -1300,22 +1293,15 @@ namespace CMQTT
                     // zero bytes read, peer gracefully closed socket
                     else
                     {
-#if TRACE
-                        MqttUtility.Trace.Debug("MqttClient [{0}] zero bytes read! stream length {1} status {2} isConnected {3} isClosing {4}", this.channel.ClientId, this.channel.Dump.Length, this.channel.Status, IsConnected, isConnectionClosing);
-#endif
+
                         // wake up thread that will notify connection is closing
                         if (this.channel.Status != SocketStatus.SOCKET_STATUS_CONNECTED)
                         {
-                            if (isConnectionClosing)
-                                Stop();
-                            else
+#if TRACE
+                            MqttUtility.Trace.Debug("MqttClient [{0}] zero bytes read! stream length {1} status {2} isConnected {3} isClosing {4}", this.channel.ClientId, this.channel.Dump.Length, this.channel.Status, IsConnected, isConnectionClosing);
+#endif
                                 this.OnConnectionClosing();
-                        }
-                        else
-                        {
-
-                            //wait a tiny bit 
-                            Thread.Sleep(500);
+                                closeEventWaitHandle.Wait(this.settings.TimeoutOnReceiving);
                         }
                     }
                 }
@@ -1389,14 +1375,9 @@ namespace CMQTT
 #if TRACE
                         MqttUtility.Trace.Debug("MqttClient [{0}] keepAlive timeout exceed delta {1} keepAlivePeriod {2}", this.channel.ClientId, delta, keepAlivePeriod);
 #endif
-#if BROKER
                         // client must close connection
                         this.OnConnectionClosing();
-#else
-                        // ... send keep alive
-						this.Ping();
-						wait = this.keepAlivePeriod;
-#endif
+
                     }
                     else
                     {
@@ -1426,7 +1407,6 @@ namespace CMQTT
 #endif
             while (this.isRunning)
             {
-#if BROKER
                 if ((this.eventQueue.Count == 0) && !this.isConnectionClosing)
                 {
                     // broker need to receive the first message (CONNECT)
@@ -1438,7 +1418,7 @@ namespace CMQTT
                         {
                             // client must close connection
                             this.Stop();
-
+                            this.closeEventWaitHandle.Wait(this.settings.TimeoutOnReceiving);
                             // client raw disconnection
                         }
                     }
@@ -1448,11 +1428,7 @@ namespace CMQTT
                         this.receiveEventWaitHandle.Wait();
                     }
                 }
-#else
-                if ((this.eventQueue.Count == 0) && !this.isConnectionClosing)
-                    // wait on receiving message from client
-                    this.receiveEventWaitHandle.Wait();
-#endif
+
 
                 // check if it is running or we are closing client
                 if (this.isRunning)
@@ -1584,13 +1560,14 @@ namespace CMQTT
                         MqttUtility.Trace.WriteLine(TraceLevel.Verbose, "eventQueue was {0} and isConnectionClosing {1}", this.eventQueue.Count, isConnectionClosing);
 #endif
 
-                        if ((this.eventQueue.Count == 0) && this.isConnectionClosing)
-						{
-                            // client must close connection
-                            this.Stop();
-
-							// client raw disconnection
-						}
+                        if (this.eventQueue.Count == 0 && this.isConnectionClosing)
+                        {
+                                // client must close connection
+                                this.Stop();
+                                this.closeEventWaitHandle.Wait(this.settings.TimeoutOnReceiving);
+                                // client raw disconnection
+                            
+                        }
 					}
                 }
             }

@@ -76,9 +76,11 @@ namespace CMQTT
         readonly IPEndPoint RemoteEndPoint;
         readonly int bufSize;
         private int _totalBytesReceived = 0;
-        CMutex dataLock = new CMutex();
         List<byte> DataStream = new List<byte>();
         readonly bool secure;
+        readonly X509Certificate cert;
+        readonly byte[] pk;
+        bool isRunning = false;
         /// <summary>
         /// Constructor
         /// </summary>
@@ -94,15 +96,10 @@ namespace CMQTT
             this.clientIndex = clientIndex;
             this.connectTimeout = connectTimeout;
             this.secure = secure;
-            if(this.secure)
+            if (secure)
             {
-                this.socket = new SecureTcpClient(RemoteEndPoint, bufSize);
-                this.socket.SetClientCertificate(cert);
-                this.socket.SetClientPrivateKey(privateKey);
-            }
-            else
-            {
-                this.socket = new TcpClient(RemoteEndPoint, bufSize);
+                this.cert = cert;
+                this.pk = privateKey;
             }
         }
 #if TRACE
@@ -110,18 +107,9 @@ namespace CMQTT
         {
             get
             {
-                var w = dataLock.WaitForMutex(5000);
-                if (w == false)
-                {
-                    throw new ApplicationException("Couldn't aquire mutex");
-                }
-                try
+                lock(DataStream)
                 {
                     return DataStream.ToArray();
-                }
-                finally
-                {
-                    dataLock.ReleaseMutex();
                 }
                 
             }
@@ -150,20 +138,9 @@ namespace CMQTT
                     byte[] recvd_bytes = new byte[numberOfBytesReceived];
                     Array.Copy(s.IncomingDataBuffer, recvd_bytes, numberOfBytesReceived);
 
-                    var w = dataLock.WaitForMutex(5000);
-                    if (w == false)
+                    lock(DataStream)
                     {
-                        throw new ApplicationException("Couldn't aquire mutex");
-                    }
-                    try
-                    {
-                        //ms.Seek(0, SeekOrigin.End);
-                        //ms.Write(buf, 0, numberOfBytesReceived);
                         DataStream.AddRange(recvd_bytes);
-                    }
-                    finally
-                    {
-                        dataLock.ReleaseMutex();
                     }
                 }
             }
@@ -174,24 +151,12 @@ namespace CMQTT
 #endif    
                 if (Status == SocketStatus.SOCKET_STATUS_CONNECTED || Status == SocketStatus.SOCKET_STATUS_WAITING)
                     receive(s);
-                else if (!_closed)
-                    Connect(() =>
-                        {
-#if TRACE
-                            MqttUtility.Trace.Debug("ReceiveDataCallBack: client: [{0}] tried to reconnect, status [{1}]", clientIndex, Status);
-#endif    
-                        });
 
             }
         }
         public byte[] Receive(int l, out int received)
         {
-            var w = dataLock.WaitForMutex(5000);
-            if (w == false)
-            {
-                throw new ApplicationException("Couldn't aquire mutex");
-            }
-            try
+            lock (DataStream)
             {
                 if (l > DataStream.Count)
                 {
@@ -210,10 +175,6 @@ namespace CMQTT
                 received = i;
                 return bytes;
             }
-            finally
-            {
-                dataLock.ReleaseMutex();
-            }
         }
 
         /// <summary>
@@ -226,24 +187,32 @@ namespace CMQTT
 #if TRACE 
             MqttUtility.Trace.WriteLine(TraceLevel.Verbose, "LocalClient [{0}] is trying to connect", clientIndex);
 #endif
-            if (Status == SocketStatus.SOCKET_STATUS_CONNECTED && !_closed)
+            if (Status == SocketStatus.SOCKET_STATUS_CONNECTED && isRunning)
             {
                 Close();
             }
             // try connection to the broker
+            if (this.secure)
+            {
+                this.socket = new SecureTcpClient(RemoteEndPoint, bufSize);
+                this.socket.SetClientCertificate(cert);
+                this.socket.SetClientPrivateKey(pk);
+            }
+            else
+            {
+                this.socket = new TcpClient(RemoteEndPoint, bufSize);
+            }
+            isRunning = true;
             var error = this.socket.ConnectToServerAsync((s) =>
             {
                 if (s.ClientStatus == SocketStatus.SOCKET_STATUS_CONNECTED)
                 {
+                    callback.BeginInvoke((r) => { }, null);
                     receive(this.socket);
-                    callback.Invoke();
                 }
                 else
                 {
                     MqttUtility.Trace.WriteLine(TraceLevel.Error, "MqttClientNetworkChannel> Connection to {0}:{1} failed {2}", RemoteEndPoint.Address.ToString(), RemoteEndPoint.Port, s.ClientStatus.ToString());
-                    Thread.Sleep(500);
-                    if(!_closed)
-                        Connect(callback);
                 }
                 
             });
@@ -258,10 +227,11 @@ namespace CMQTT
         /// <returns>Number of byte sent</returns>
         public SocketErrorCodes Send(byte[] buffer, Action<int> sentCallback)
         {
-            if (_closed)
-                return SocketErrorCodes.SOCKET_NOT_CONNECTED;
             return this.socket.SendDataAsync(buffer, 0, buffer.Length, (s, numberOfBytes) =>
                 {
+#if TRACE
+            MqttUtility.Trace.Debug("MqttClientNetworkChannel> sent {0} bytes", numberOfBytes);
+#endif     
                     if(sentCallback != null)
                         sentCallback.Invoke(numberOfBytes);
                 });
@@ -295,7 +265,6 @@ namespace CMQTT
         //    }
         //    return buffer.Length;
         //}
-        bool _closed;
         /// <summary>
         /// Close the network channel
         /// </summary>
@@ -304,9 +273,14 @@ namespace CMQTT
 #if TRACE
             MqttUtility.Trace.Debug("MqttClientNetworkChannel> [{0}] Close was called", ClientId);
 #endif
-            DataStream.Clear();
+            isRunning = false;
+            lock (DataStream)
+            {
+                DataStream.Clear();
+            }
+            socket.DisconnectFromServer();
             socket.Dispose();
-            _closed = true;
+            
         }
     }
 

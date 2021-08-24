@@ -28,10 +28,8 @@ using CMQTT.Internal;
 using System.Collections.Generic;
 using System.Collections;
 using Crestron.SimplSharp.CrestronIO;
-#if SSL
 using Crestron.SimplSharp.Cryptography;
 using Crestron.SimplSharp.Cryptography.X509Certificates;
-#endif
 // alias needed due to Microsoft.SPOT.Trace in .Net Micro Framework
 // (it's ambiguos with CMQTT.Utility.Trace)
 using MqttUtility = CMQTT.Utility;
@@ -214,7 +212,7 @@ namespace CMQTT
 
             // queue for received message
             this.receiveEventWaitHandle = new CEvent(true, false);
-            this.closeEventWaitHandle = new CEvent(true, false);
+            this.closeEventWaitHandle = new CEvent(true, true);
             this.syncEndReceiving = new CEvent(true, false);
             this.eventQueue = new Queue();
             this.internalQueue = new Queue();
@@ -311,12 +309,14 @@ namespace CMQTT
                 // connect to the broker
                 if (IsNotConnectingOrTimedout)
                 {
+                    //closeEventWaitHandle.Wait();
                     this.channel.Connect(() =>
                     {
                         try
                         {
                             this.lastCommTime = 0;
                             this.isRunning = true;
+                            this.wasClosed = false;
                             this.isConnectionClosing = false;
                             // start thread for receiving messages from broker
                             receiveThread = Fx.StartThread(this.ReceiveThread);
@@ -369,6 +369,7 @@ namespace CMQTT
                         {
                             connectionStartedAt = DateTime.MinValue;
                             MqttUtility.Trace.Error("Exception in conenction callback {0} {1}", ex.Message, ex.StackTrace);
+                            OnConnectionClosed();
                         }   
                     });
                 }
@@ -388,7 +389,7 @@ namespace CMQTT
         {
             get
             {
-                return (DateTime.Now - connectionStartedAt).TotalMilliseconds > this.connectTimeout;
+                return (DateTime.Now - connectionStartedAt).TotalMilliseconds > this.connectTimeout * 2;
             }
         }
         DateTime connectionStartedAt = DateTime.MinValue;
@@ -413,37 +414,48 @@ namespace CMQTT
         /// <summary>
         /// Close client
         /// </summary>
-
-        private void Stop()
+        bool wasClosed = false;
+        internal void Stop()
         {
-				// stop receiving thread
-				this.isRunning = false;
+#if TRACE
+            MqttUtility.Trace.Debug("MqttLocalClient> [{0}] is stopping", this.channel.ClientId);
+#endif
+            if (wasClosed)
+            {
+#if TRACE
+                MqttUtility.Trace.Debug("MqttLocalClient> [{0}] was already stoped", this.channel.ClientId);
+                return;
+#endif
+            }
+            wasClosed = true;
+            closeEventWaitHandle.Reset();
+            this.isRunning = false;
 
-				// wait end receive event thread
-				if (this.receiveEventWaitHandle != null)
-					this.receiveEventWaitHandle.Set();
+            // wait end receive event thread
+            if (this.receiveEventWaitHandle != null)
+                this.receiveEventWaitHandle.Set();
 
-				if (this.closeEventWaitHandle != null)
-					this.closeEventWaitHandle.Set();
 
-				// wait end process inflight thread
-				if (this.inflightWaitHandle != null)
-					this.inflightWaitHandle.Set();
-		// unlock keep alive thread and wait
-				this.keepAliveEvent.Set();
+            // wait end process inflight thread
+            if (this.inflightWaitHandle != null)
+                this.inflightWaitHandle.Set();
+            // unlock keep alive thread and wait
+            this.keepAliveEvent.Set();
 
-				if (this.keepAliveEventEnd != null)
-					this.keepAliveEventEnd.Wait(this.connectTimeout);
+            if (this.keepAliveEventEnd != null)
+                this.keepAliveEventEnd.Wait(this.connectTimeout);
 
-				// clear all queues
-				this.inflightQueue.Clear();
-				this.internalQueue.Clear();
-				this.eventQueue.Clear();
+            // clear all queues
+            this.inflightQueue.Clear();
+            this.internalQueue.Clear();
+            this.eventQueue.Clear();
 
-				// close network channel
-				this.channel.Close();
+            // close network channel
+            this.channel.Close();
 
-				this.IsConnected = false;
+            this.IsConnected = false;
+            this.closeEventWaitHandle.Set();
+            OnConnectionClosed();
 
         }
 
@@ -565,11 +577,10 @@ namespace CMQTT
             if (!this.isConnectionClosing)
             {
 #if TRACE 
-                MqttUtility.Trace.WriteLine(TraceLevel.Verbose, "MqttLocalClient> [{0}] OnConnectionClosing was called", ClientId);
+                MqttUtility.Trace.WriteLine(TraceLevel.Verbose, "MqttLocalClient> [{0}] OnConnectionClosing was called", channel.ClientId);
 #endif 
                 this.isConnectionClosing = true;
                 this.receiveEventWaitHandle.Set();
-                this.channel.Close();
             }
         }
 
@@ -650,13 +661,13 @@ namespace CMQTT
                 {
                     // update last message sent ticks
 #if TRACE
-                    MqttUtility.Trace.Debug("Client [{0}] sent [{1}] bytes", ClientId, sentBytes);
+                    MqttUtility.Trace.Debug("Client [{0}] sent [{1}] bytes", this.channel.ClientId, sentBytes);
 #endif
                     this.lastCommTime = Environment.TickCount;
                 });
 
 #if TRACE
-                MqttUtility.Trace.Debug("Client [{0}] send returned [{1}]", ClientId, err);
+                MqttUtility.Trace.Debug("Client [{0}] send returned [{1}]", this.channel.ClientId, err);
 #endif
 
             }
@@ -1178,17 +1189,15 @@ namespace CMQTT
                         else
                         {
 
-                            Thread.Sleep(500);
-                            // wake up thread that will notify connection is closing
+       
                             if (this.channel.Status != SocketStatus.SOCKET_STATUS_CONNECTED)
                             {
 #if TRACE
-                            MqttUtility.Trace.Debug("MqttClient [{0}] zero bytes received! stream length {1} status {2}", this.channel.ClientId, this.channel.Dump.Length, channel.Status);
+                                MqttUtility.Trace.Debug("MqttClient [{0}] zero bytes received! stream length {1} status {2}", this.channel.ClientId, this.channel.Dump.Length, channel.Status);
 #endif
-                                if (isConnectionClosing)
-                                    Stop();
-                                else
                                     this.OnConnectionClosing();
+                                    Thread.Sleep(500);
+
                             }
                         }
                     }
@@ -1415,9 +1424,7 @@ namespace CMQTT
                             {
                                 // client must close connection
                                 this.Stop();
-
-                                // client raw disconnection
-                                this.OnConnectionClosed();
+                                closeEventWaitHandle.Wait();
                             }
                         }
                     }

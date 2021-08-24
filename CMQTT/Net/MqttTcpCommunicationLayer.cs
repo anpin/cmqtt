@@ -121,13 +121,6 @@ namespace CMQTT.Communication
                 this.listener = new TcpServer("0.0.0.0", this.Port, ushort.MaxValue, EthernetAdapterType.EthernetUnknownAdapter, this.NumberOfConnections);
             }
             this.listener.ClientStatusChange += _server_SocketStatusChange;
-            this.listener.Nagle = true;
-            this.listener.SocketSendOrReceiveTimeOutInMs = 5000;
-            //SocketErrorCodes error = listener.WaitForConnectionAsync("0.0.0.0", connectedCallback);
-            //#if TRACE
-            //    MqttUtility.Trace.Debug("Server> WaitingForConnection returned [{0}] [{1}]", error, listener.MaxNumberOfClientSupported);
-            //#endif
-            //_waiting = (error == SocketErrorCodes.SOCKET_OPERATION_PENDING);
         }
         void updateClientStatus(uint clientIndex, SocketStatus status)
         {
@@ -154,30 +147,20 @@ namespace CMQTT.Communication
                 updateClientStatus(clientIndex, serverSocketStatus);
                 if (serverSocketStatus != SocketStatus.SOCKET_STATUS_CONNECTED )
                 {
-#if TRACE
+//#if TRACE
 
                     
-                    MqttUtility.Trace.Debug("Server> Socket status change trying to disconnect [{0}]", clientIndex);
-#endif
-                    var derror =  myICrestronTcpServer.Disconnect(clientIndex);
-#if TRACE
-                    MqttUtility.Trace.Debug("Server> Socket status change disconnect returned [{0}] [{1}]", clientIndex, derror);
-#endif
+//                    MqttUtility.Trace.Debug("Server> Socket status change trying to disconnect [{0}]", clientIndex);
+//#endif
+//                    var derror =  myICrestronTcpServer.Disconnect(clientIndex);
+//#if TRACE
+//                    MqttUtility.Trace.Debug("Server> Socket status change disconnect returned [{0}] [{1}]", clientIndex, derror);
+//#endif
 
-#if TRACE
-                    MqttUtility.Trace.Debug("Server> Socket status change trying to stop [{0}]", clientIndex);
-#endif
-                    _chilling = true;
-                    myICrestronTcpServer.Stop();
-                    Thread.Sleep(500);
-                    _chilling = false;
 #if TRACE
                     MqttUtility.Trace.Debug("Server> Socket status change trying to clean [{0}]", clientIndex);
 #endif
                     OnClientDisconnected(clientIndex, serverSocketStatus);
-#if TRACE
-                    MqttUtility.Trace.Debug("Server> Socket status change trying to start over");
-#endif
                     if (!_waiting)
                         this.CheckForWaitingConnection();
                 }
@@ -329,21 +312,7 @@ namespace CMQTT.Communication
 #if TRACE
                 MqttUtility.Trace.Debug("Server> WaitForConnectionAsync: [{0}/{1}] :: returned: {2}", listener.NumberOfClientsConnected, listener.MaxNumberOfClientSupported, error.ToString());
 #endif
-                //if (error == SocketErrorCodes.SOCKET_CONNECTION_IN_PROGRESS)
-                //{
-                //    Thread.Sleep(1000);
-                //    error = listener.WaitForConnectionAsync("0.0.0.0", connectedCallback);
-                //    if (error == SocketErrorCodes.SOCKET_CONNECTION_IN_PROGRESS)
-                //    {
-                //        listener.Stop();
-                //        _waiting = false;
-
-                //    }
-                //}
-                //else
-                //{
-                    _waiting = error == SocketErrorCodes.SOCKET_OPERATION_PENDING; // || error == SocketErrorCodes.SOCKET_CONNECTION_IN_PROGRESS) ? true : false;
-                //}
+                _waiting = error == SocketErrorCodes.SOCKET_OPERATION_PENDING;
                 if (error == SocketErrorCodes.SOCKET_CONNECTION_IN_PROGRESS)
                 {
                     inProgressCounter++;

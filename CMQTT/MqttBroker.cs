@@ -26,17 +26,7 @@ using CMQTT.Managers;
 using CMQTT.Communication;
 using CMQTT.Session;
 using MqttUtility = CMQTT.Utility;
-#if SSL
-
-#if CRESTRON
 using Crestron.SimplSharp.Cryptography.X509Certificates;
-#elif !(WINDOWS_APP || WINDOWS_PHONE_APP)
-using System.Security.Cryptography.X509Certificates;
-using System.Net.Security;
-#elif (MF_FRAMEWORK_VERSION_V4_2 || MF_FRAMEWORK_VERSION_V4_3)
-using Microsoft.SPOT.Net.Security;
-#endif
-#endif
 
 namespace CMQTT
 {
@@ -100,7 +90,6 @@ namespace CMQTT
             // MQTT communication layer
             this.commLayer = commLayer;
             this.commLayer.ClientConnected += commLayer_ClientConnected;
-            this.commLayer.ClientDisconnected += CommLayer_ClientDisconnected;
             // create managers (publisher, subscriber, session and UAC)
             this.subscriberManager = new MqttSubscriberManager();
             this.sessionManager = new MqttSessionManager();
@@ -108,14 +97,6 @@ namespace CMQTT
             this.uacManager = new MqttUacManager();
 
             this.clients = new Dictionary<uint, MqttClient>();
-        }
-
-        private void CommLayer_ClientDisconnected(object sender, MqttClientDisconnectedEventArgs e)
-        {
-            MqttClient client = GetClient(e.ClientIndex);
-            if(client != null && !client.WasClosed)
-                CloseClient(client);
-
         }
 
         /// <summary>
@@ -139,8 +120,7 @@ namespace CMQTT
             this.publisherManager.Stop();
 
             // close connection with all clients
-			lock (clients)
-			{
+
 				foreach (MqttClient client in this.clients.Values)
                 {
 #if TRACE
@@ -148,7 +128,6 @@ namespace CMQTT
 #endif
                     CloseClient(client);
 				}
-			}
         }
 
         /// <summary>
@@ -157,13 +136,11 @@ namespace CMQTT
         /// <param name="client">Client to close</param>
         private void CloseClient(MqttClient client)
         {
-            lock (clients)
-            {
 #if TRACE
                 MqttUtility.Trace.Debug("Broker> Closing client [{0}] [{1}]", client.SocketId, client.ClientId);
 #endif
                 // if client is connected and it has a will message
-                if (!client.IsConnected && client.WillFlag)
+                if (client.IsConnected && client.WillFlag)
                 {
                     // create the will PUBLISH message
                     MqttMsgPublish publish =
@@ -188,15 +165,7 @@ namespace CMQTT
 
                 // Waits end messages publication
                 publisherManager.PublishMessagesEventEnd.Wait(this.settings.TimeoutOnReceiving);
-
-                // delete client from runtime subscription
                 this.subscriberManager.Unsubscribe(client);
-                client.MqttMsgDisconnected -= Client_MqttMsgDisconnected;
-                client.MqttMsgPublishReceived -= Client_MqttMsgPublishReceived;
-                client.MqttMsgConnected -= Client_MqttMsgConnected;
-                client.MqttMsgSubscribeReceived -= Client_MqttMsgSubscribeReceived;
-                client.MqttMsgUnsubscribeReceived -= Client_MqttMsgUnsubscribeReceived;
-                client.ConnectionClosed -= Client_ConnectionClosed;
 
                 // close the client
                 if (!client.WasClosed)
@@ -210,27 +179,46 @@ namespace CMQTT
                     MqttUtility.Trace.Debug("Broker> client was previously closed");
 #endif
                 }
+            RemoveClient(client);
+            
+        
 
+#if TRACE
+            MqttUtility.Trace.Debug("Broker> Closed client");
+#endif
+        }
+        void RemoveClient(MqttClient client)
+        {
+            // delete client from runtime subscription
+            client.MqttMsgDisconnected -= Client_MqttMsgDisconnected;
+            client.MqttMsgPublishReceived -= Client_MqttMsgPublishReceived;
+            client.MqttMsgConnected -= Client_MqttMsgConnected;
+            client.MqttMsgSubscribeReceived -= Client_MqttMsgSubscribeReceived;
+            client.MqttMsgUnsubscribeReceived -= Client_MqttMsgUnsubscribeReceived;
+            client.ConnectionClosed -= Client_ConnectionClosed;
+            lock (clients)
+            {
                 if (clients.ContainsKey(client.SocketId))
                 {
                     // remove client from the collection
                     this.clients.Remove(client.SocketId);
                 }
             }
-
-#if TRACE
-            MqttUtility.Trace.Debug("Broker> Closed client");
-#endif
         }
 
-        void commLayer_ClientConnected(object sender, MqttClientConnectedEventArgs e)
+    void commLayer_ClientConnected(object sender, MqttClientConnectedEventArgs e)
         {
+            bool previousClientIsInTheList = false;
 #if TRACE
             MqttUtility.Trace.Debug("Broker> commLayer_ClientConnected Was called [{0}]", e.Client.SocketId);
 #endif
-            if (this.clients.ContainsKey(e.Client.SocketId))
+            lock(clients)
             {
-                CloseClient(this.clients[e.Client.SocketId]);
+               previousClientIsInTheList = this.clients.ContainsKey(e.Client.SocketId);
+            }
+            if (previousClientIsInTheList)
+            {
+                RemoveClient(this.clients[e.Client.SocketId]);
             }
             // register event handlers from client
             e.Client.MqttMsgDisconnected += Client_MqttMsgDisconnected;
