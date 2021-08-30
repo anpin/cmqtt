@@ -202,155 +202,163 @@ namespace CMQTT.Managers
         /// </summary>
         public object PublishThread(object o)
         {
-
+            try
+            {
 #if TRACE
             MqttUtility.Trace.Debug("MqttPublishManager: starting publish thread");
 #endif
-            int count;
-            byte qosLevel;
-            MqttMsgPublish publish;
+                int count;
+                byte qosLevel;
+                MqttMsgPublish publish;
 
-            // create event to signal that current thread is ended
-            this.publishEventEnd = new CEvent(true, false);
+                // create event to signal that current thread is ended
+                this.publishEventEnd = new CEvent(true, false);
 
-            while (this.isRunning)
-            {
-                // wait on message queueud to publish
-                this.publishQueueWaitHandle.Wait();
-				publishMessagesEventEnd.Reset();
-
-                // first check new subscribers to send retained messages ...
-                lock (this.subscribersForRetained)
+                while (this.isRunning)
                 {
-                    count = this.subscribersForRetained.Count;
+                    // wait on message queueud to publish
+                    this.publishQueueWaitHandle.Wait();
+                    publishMessagesEventEnd.Reset();
 
-                    // publish retained messages to subscribers (new or reconnected)
-                    while (count > 0)
+                    // first check new subscribers to send retained messages ...
+                    lock (this.subscribersForRetained)
                     {
-                        count--;
-                        MqttSubscription subscription = this.subscribersForRetained.Dequeue();
+                        count = this.subscribersForRetained.Count;
 
-						// This lock avoid modifying retainedMessages collection while publishing messages
-						lock (retainedMessages)
-						{
-							var query = from p in this.retainedMessages
-										where (new Regex(subscription.Topic)).IsMatch(p.Key)     // check for topics based also on wildcard with regex
-										select p.Value;
-
-							if (query != null && query.Count() > 0)
-							{
-								foreach (MqttMsgPublish retained in query)
-								{
-									qosLevel = (subscription.QosLevel < retained.QosLevel) ? subscription.QosLevel : retained.QosLevel;
-
-									// send PUBLISH message to the current subscriber
-									subscription.Client.Publish(retained.Topic, retained.Message, qosLevel, retained.Retain);
-								}
-							}
-						}
-                    }
-                }
-
-                // ... then check clients to send outgoing session messages
-                lock (this.clientsForSession)
-                {
-                    count = this.clientsForSession.Count;
-
-                    // publish outgoing session messages to clients (reconnected)
-                    while (count > 0)
-                    {
-                        count--;
-                        string clientId = this.clientsForSession.Dequeue();
-
-                        MqttBrokerSession session = this.sessionManager.GetSession(clientId);
-
-                        while (session.OutgoingMessages.Count > 0)
+                        // publish retained messages to subscribers (new or reconnected)
+                        while (count > 0)
                         {
-                            MqttMsgPublish outgoingMsg = session.OutgoingMessages.Dequeue();
-                            
-                            var query = from s in session.Subscriptions
-                                where (new Regex(s.Topic)).IsMatch(outgoingMsg.Topic)     // check for topics based also on wildcard with regex
-                                select s;
+                            count--;
+                            MqttSubscription subscription = this.subscribersForRetained.Dequeue();
 
-                            MqttSubscription subscription = query.First();
-
-                            if (subscription != null)
+                            // This lock avoid modifying retainedMessages collection while publishing messages
+                            lock (retainedMessages)
                             {
-                                qosLevel = (subscription.QosLevel < outgoingMsg.QosLevel) ? subscription.QosLevel : outgoingMsg.QosLevel;
+                                var query = from p in this.retainedMessages
+                                            where (new Regex(subscription.Topic)).IsMatch(p.Key)     // check for topics based also on wildcard with regex
+                                            select p.Value;
 
-                                session.Client.Publish(outgoingMsg.Topic, outgoingMsg.Message, qosLevel, outgoingMsg.Retain);
+                                if (query != null && query.Count() > 0)
+                                {
+                                    foreach (MqttMsgPublish retained in query)
+                                    {
+                                        qosLevel = (subscription.QosLevel < retained.QosLevel) ? subscription.QosLevel : retained.QosLevel;
+
+                                        // send PUBLISH message to the current subscriber
+                                        subscription.Client.Publish(retained.Topic, retained.Message, qosLevel, retained.Retain);
+                                    }
+                                }
                             }
                         }
                     }
-                }
-                
-                // ... then pass to process publish queue
-                lock (this.publishQueue)
-                {
-                    publish = null;
 
-                    count = this.publishQueue.Count;
-                    // publish all queued messages
-                    while (count > 0)
+                    // ... then check clients to send outgoing session messages
+                    lock (this.clientsForSession)
                     {
-                        count--;
-                        publish = (MqttMsgPublish)this.publishQueue.Dequeue();
+                        count = this.clientsForSession.Count;
 
-                        if (publish != null)
+                        // publish outgoing session messages to clients (reconnected)
+                        while (count > 0)
                         {
-                            // get all subscriptions for a topic
-                            List<MqttSubscription> subscriptions = this.subscriberManager.GetSubscriptionsByTopic(publish.Topic);
+                            count--;
+                            string clientId = this.clientsForSession.Dequeue();
 
-                            if ((subscriptions != null) && (subscriptions.Count > 0))
+                            MqttBrokerSession session = this.sessionManager.GetSession(clientId);
+
+                            while (session.OutgoingMessages.Count > 0)
                             {
-                                foreach (MqttSubscription subscription in subscriptions)
-                                {
-                                    qosLevel = (subscription.QosLevel < publish.QosLevel) ? subscription.QosLevel : publish.QosLevel;
+                                MqttMsgPublish outgoingMsg = session.OutgoingMessages.Dequeue();
 
-                                    // send PUBLISH message to the current subscriber
-                                    subscription.Client.Publish(publish.Topic, publish.Message, qosLevel, publish.Retain);
+                                var query = from s in session.Subscriptions
+                                            where (new Regex(s.Topic)).IsMatch(outgoingMsg.Topic)     // check for topics based also on wildcard with regex
+                                            select s;
+
+                                MqttSubscription subscription = query.First();
+
+                                if (subscription != null)
+                                {
+                                    qosLevel = (subscription.QosLevel < outgoingMsg.QosLevel) ? subscription.QosLevel : outgoingMsg.QosLevel;
+
+                                    session.Client.Publish(outgoingMsg.Topic, outgoingMsg.Message, qosLevel, outgoingMsg.Retain);
                                 }
                             }
+                        }
+                    }
 
-                            // get all sessions
-                            List<MqttBrokerSession> sessions = this.sessionManager.GetSessions();
+                    // ... then pass to process publish queue
+                    lock (this.publishQueue)
+                    {
+                        publish = null;
 
-                            if ((sessions != null) && (sessions.Count > 0))
+                        count = this.publishQueue.Count;
+                        // publish all queued messages
+                        while (count > 0)
+                        {
+                            count--;
+                            publish = (MqttMsgPublish)this.publishQueue.Dequeue();
+
+                            if (publish != null)
                             {
-                                foreach (MqttBrokerSession session in sessions)
+                                // get all subscriptions for a topic
+                                List<MqttSubscription> subscriptions = this.subscriberManager.GetSubscriptionsByTopic(publish.Topic);
+
+                                if ((subscriptions != null) && (subscriptions.Count > 0))
                                 {
-                                    var query = from s in session.Subscriptions
-                                                where (new Regex(s.Topic)).IsMatch(publish.Topic)
-                                                select s;
-
-                                    MqttSubscriptionComparer comparer = new MqttSubscriptionComparer(MqttSubscriptionComparer.MqttSubscriptionComparerType.OnClientId);
-
-                                    // consider only session active for client disconnected (not online)
-                                    if (session.Client == null)
+                                    foreach (MqttSubscription subscription in subscriptions)
                                     {
-                                        foreach (MqttSubscription subscription in query.Distinct(comparer))
-                                        {
-                                            qosLevel = (subscription.QosLevel < publish.QosLevel) ? subscription.QosLevel : publish.QosLevel;
+                                        qosLevel = (subscription.QosLevel < publish.QosLevel) ? subscription.QosLevel : publish.QosLevel;
 
-                                            // save PUBLISH message for client disconnected (not online)
-                                            session.OutgoingMessages.Enqueue(publish);
+                                        // send PUBLISH message to the current subscriber
+                                        subscription.Client.Publish(publish.Topic, publish.Message, qosLevel, publish.Retain);
+                                    }
+                                }
+
+                                // get all sessions
+                                List<MqttBrokerSession> sessions = this.sessionManager.GetSessions();
+
+                                if ((sessions != null) && (sessions.Count > 0))
+                                {
+                                    foreach (MqttBrokerSession session in sessions)
+                                    {
+                                        var query = from s in session.Subscriptions
+                                                    where (new Regex(s.Topic)).IsMatch(publish.Topic)
+                                                    select s;
+
+                                        MqttSubscriptionComparer comparer = new MqttSubscriptionComparer(MqttSubscriptionComparer.MqttSubscriptionComparerType.OnClientId);
+
+                                        // consider only session active for client disconnected (not online)
+                                        if (session.Client == null)
+                                        {
+                                            foreach (MqttSubscription subscription in query.Distinct(comparer))
+                                            {
+                                                qosLevel = (subscription.QosLevel < publish.QosLevel) ? subscription.QosLevel : publish.QosLevel;
+
+                                                // save PUBLISH message for client disconnected (not online)
+                                                session.OutgoingMessages.Enqueue(publish);
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
+
+                    // Report all pending messages have been published
+                    publishMessagesEventEnd.Set();
                 }
 
-				// Report all pending messages have been published
-				publishMessagesEventEnd.Set();
-            }
-
-            // signal thread end
-            this.publishEventEnd.Set();
+                // signal thread end
+                this.publishEventEnd.Set();
 #if TRACE
             MqttUtility.Trace.Debug("MqttPublishManager: exiting publish thread");
 #endif
+            }
+            catch (Exception ex)
+            {
+                MqttUtility.Trace.Error(string.Format("Exception in publisher thread, isRunning {0}", isRunning), ex);
+                if (isRunning)
+                    publishThread = Fx.StartThread(PublishThread);
+            }
             return null;
         }
     }
