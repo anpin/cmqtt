@@ -207,8 +207,8 @@ namespace CMQTT
             {
                 if (s.ClientStatus == SocketStatus.SOCKET_STATUS_CONNECTED)
                 {
-                    callback.BeginInvoke((r) => { }, null);
                     receive(this.socket);
+                    callback.Invoke();
                 }
                 else
                 {
