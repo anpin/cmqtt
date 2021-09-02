@@ -46,6 +46,10 @@ namespace CMQTT.Communication
         /// </summary>
         public int Port { get; private set; }
         /// <summary>
+        /// Listner buffer size
+        /// </summary>
+        public int BufferSize { get; private set; }
+        /// <summary>
         /// NumberOfClients Allowed
         /// </summary>
         public int NumberOfConnections { get; private set; }
@@ -83,7 +87,7 @@ namespace CMQTT.Communication
         /// <param name="port">TCP listening port</param>
         /// <param name="connectTimeout">connection timeout in ms</param>
         /// <param name="numberOfConnections">Max number of clients</param>
-        public MqttTcpCommunicationLayer(int port, int connectTimeout, int numberOfConnections) : this(port, connectTimeout, numberOfConnections, false, null, null)
+        public MqttTcpCommunicationLayer(int port, int bufferSize, int connectTimeout, int numberOfConnections) : this(port, bufferSize, connectTimeout, numberOfConnections, false, null, null)
         {
         }
             /// <summary>
@@ -95,7 +99,7 @@ namespace CMQTT.Communication
             /// <param name="secure">Pass true to indicate that we are using SSL</param>
             /// <param name="serverCert">X509 server certificate</param>
             /// <param name="privateKey">Private Key corresponding to the Server Certificate in binary (DER) format</param>
-            public MqttTcpCommunicationLayer(int port, int connectTimeout, int numberOfConnections, bool secure, X509Certificate serverCert, byte[] privateKey)
+            public MqttTcpCommunicationLayer(int port, int bufferSize, int connectTimeout, int numberOfConnections, bool secure, X509Certificate serverCert, byte[] privateKey)
         {
             if (secure && serverCert == null)
                 throw new ArgumentException("Secure connection requested but no server certificate provided");
@@ -105,6 +109,7 @@ namespace CMQTT.Communication
             this.Port = port;
             this.connectTimeout = connectTimeout;
             this.NumberOfConnections = numberOfConnections;
+            this.BufferSize = bufferSize * NumberOfConnections;
             // With IPAddress.IPv6Any it doesn't works correctly on WinCE
 
 #if TRACE
@@ -112,13 +117,13 @@ namespace CMQTT.Communication
 #endif
             if (Secure)
             {
-                this.listener = new SecureTcpServer("0.0.0.0", this.Port, ushort.MaxValue, EthernetAdapterType.EthernetUnknownAdapter, this.NumberOfConnections);
+                this.listener = new SecureTcpServer("0.0.0.0", this.Port, this.BufferSize, EthernetAdapterType.EthernetUnknownAdapter, this.NumberOfConnections);
                 this.listener.SetServerCertificate(serverCert);
                 this.listener.SetServerPrivateKey(privateKey);
             }
             else
             {
-                this.listener = new TcpServer("0.0.0.0", this.Port, ushort.MaxValue, EthernetAdapterType.EthernetUnknownAdapter, this.NumberOfConnections);
+                this.listener = new TcpServer("0.0.0.0", this.Port, this.BufferSize, EthernetAdapterType.EthernetUnknownAdapter, this.NumberOfConnections);
             }
             this.listener.ClientStatusChange += _server_SocketStatusChange;
         }

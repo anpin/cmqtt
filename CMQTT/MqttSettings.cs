@@ -23,6 +23,7 @@ namespace CMQTT
     public class MqttSettings
     {
         // default port for MQTT protocol
+        public const int MQTT_BROKER_DEFAULT_BUFFER_SIZE = ushort.MaxValue * 20;
         public const int MQTT_BROKER_DEFAULT_PORT = 1883;
         public const int MQTT_BROKER_DEFAULT_SSL_PORT = 8883;
         // default timeout on receiving from client
@@ -35,7 +36,8 @@ namespace CMQTT
         // within a reasonable amount of time after TCP/IP connection 
         public const int MQTT_CONNECT_TIMEOUT = 30000;
         // default inflight queue size
-        public const int MQTT_MAX_INFLIGHT_QUEUE_SIZE = int.MaxValue;
+        //public const int MQTT_MAX_INFLIGHT_QUEUE_SIZE = int.MaxValue;
+        public const int MQTT_MAX_INFLIGHT_QUEUE_SIZE = ushort.MaxValue * 10;
 
         /// <summary>
         /// Listening connection port

@@ -74,7 +74,7 @@ namespace CMQTT
         /// Constructor (TCP/IP communication layer on port 1883 and default settings)
         /// </summary>
         public MqttBroker(int numberOfClients)
-            : this(new MqttTcpCommunicationLayer(MqttSettings.MQTT_BROKER_DEFAULT_PORT, DefaultConnectTimeout, numberOfClients == 0 ? DefaultNumberOfClients : numberOfClients), MqttSettings.Instance)
+            : this(new MqttTcpCommunicationLayer(MqttSettings.MQTT_BROKER_DEFAULT_PORT,MqttSettings.MQTT_BROKER_DEFAULT_BUFFER_SIZE, DefaultConnectTimeout, numberOfClients == 0 ? DefaultNumberOfClients : numberOfClients), MqttSettings.Instance)
         {
         }
         /// <summary>
