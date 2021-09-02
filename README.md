@@ -55,7 +55,7 @@ namespace Server
 Please refer to the Server project for the full example with local client running in the same program
 
 ## Supported Platforms: 
-* Crestron 3-series controllers
+* Crestron 3-series controllers (see warning below)
 * Crestron 4-series controllers
 
 
