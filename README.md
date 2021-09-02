@@ -60,5 +60,5 @@ Please refer to the Server project for the full example with local client runnin
 
 
 # 3-series compatibility warning 
-While it compiles with VS2008 for 3-series controllers further tests showed that it takes almost 100% CPU on AV3 with a small number of clients connected. It gets especially worse (stack overflow with consequent reboot) if you try to run a local client in a separate program connected tp 127.0.0.1, so far we were not able to resolve the issue and advice against using this code in production
+While it compiles with VS2008 for 3-series controllers further tests showed that it takes almost 100% CPU on AV3 with a small number of clients connected. It gets especially worse (stack overflow with consequent reboot) if you try to run a local client in a separate program, so far we were not able to resolve the issue and advice against using this code in production
 
