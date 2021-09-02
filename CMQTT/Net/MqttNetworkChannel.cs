@@ -114,11 +114,7 @@ namespace CMQTT
             {
                 try
                 {
-                    if (rxMutex)
-                    {
-                        Thread.Sleep(50);
-                    }
-                    else
+                    if(!rxMutex)
                     {
                         receive(this.socket);
                     }
@@ -130,6 +126,10 @@ namespace CMQTT
                         return null;
                     else
                         MqttUtility.Trace.Error("MqttNetworkChannel> Exception in the ListnerThread {0} {1}", e.Message, e.StackTrace);
+                }
+                finally
+                {
+                        Thread.Sleep(50);
                 }
             }
             return null;
@@ -171,19 +171,22 @@ namespace CMQTT
             SocketStatus st = SocketStatus.SOCKET_STATUS_SOCKET_NOT_EXIST;
             try
             {
-                st = s.GetServerSocketStatusForSpecificClient(newClientIndex);
 #if TRACE
+                st = s.GetServerSocketStatusForSpecificClient(newClientIndex);
+
                 MqttUtility.Trace.Debug("ReceiveDataCallBack: client: [{0}] length: [{1}] status: [{2}]", newClientIndex, numberOfBytesReceived, st);
 #endif
 
                 if (numberOfBytesReceived > 0)//&& st == SocketStatus.SOCKET_STATUS_CONNECTED)
                 {
-                    _totalBytesReceived += numberOfBytesReceived;
-                    byte[] recvd_bytes = new byte[numberOfBytesReceived];
-                    Array.Copy(s.GetIncomingDataBufferForSpecificClient(newClientIndex), recvd_bytes, numberOfBytesReceived);
-                    lock (DataStream)
+                    lock(DataStream)
                     {
-                        DataStream.AddRange(recvd_bytes);
+                        var buffer = s.GetIncomingDataBufferForSpecificClient(newClientIndex);
+                        for(var i = 0; i < numberOfBytesReceived; i++)
+                        {
+                            DataStream.Add(buffer[i]);
+                        }
+                        _totalBytesReceived += numberOfBytesReceived;
                     }
                 }
             }
@@ -208,9 +211,8 @@ namespace CMQTT
                 var i = 0;
                 for (i = 0; i < l; i++)
                 {
-                    var b = DataStream[0];
+                    bytes[i] = (byte)DataStream[0];
                     DataStream.RemoveAt(0);
-                    bytes[i] = (byte)b;
                 }
                 received = i;
                 return bytes;
