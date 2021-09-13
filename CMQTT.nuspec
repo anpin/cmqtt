@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
     <metadata>
         <id>CMQTT</id>
-        <version>0.0.0.5</version>
+        <version>0.0.0.6</version>
         <title>MQTT Broker for Crestron</title>
         <authors>Pavel Anpin, Paolo Patierno and the GnatMQ Community</authors>
         <owners>Pavel Anpin</owners>
@@ -11,7 +11,7 @@
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
         <description>Port of GnatMQ Broker (server) for the MQTT protocol to Crestron SIMPL# Framework, works on 3 and 4 series controllers</description>
         <summary>Port of GnatMQ Broker (server) for the MQTT protocol to Crestron SIMPL# Framework, works on 3 and 4 series controllers</summary>
-        <releaseNotes>Added exception handling and restart of publisher thread</releaseNotes>
+        <releaseNotes>Fixed issue with local client on 3-series</releaseNotes>
         <copyright>AP Engineering LLC Copyright 2021</copyright>
         <tags>m2m mqtt queue messaging internetofthings iot cloud broker crestron 3series 4series</tags>
     </metadata>
