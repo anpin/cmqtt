@@ -55,12 +55,10 @@ namespace Server
 Please refer to the Server project for the full example with local client running in the same program
 
 ## Supported Platforms: 
-* Crestron 3-series controllers
+* Crestron 3-series controllers (see warning below)
 * Crestron 4-series controllers
 
-# If this package saves you time consider donating via buttons below
-[![Coinbase](https://img.shields.io/badge/Donate%20with-Crypto-red)](https://commerce.coinbase.com/checkout/68c42319-c494-47b5-8755-2fad731a3547)
-[![Paypal](https://img.shields.io/badge/Donate%20with-PayPal-blue)](https://paypal.me/APEngineeringLLC?locale.x=en_US)
 
-# Comercial support is availiable
-    Drop us an email at hi[at]apes[dot]ge 
+# 3-series compatibility warning 
+While it compiles with VS2008 for 3-series controllers further tests showed that it takes almost 100% CPU on AV3 with a small number of clients connected. It gets especially worse (stack overflow with consequent reboot) if you try to run a local client in a separate program, so far we were not able to resolve the issue and advice against using this code in production
+
